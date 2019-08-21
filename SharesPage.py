@@ -1,16 +1,15 @@
-import operator
-import re
+# encoding:utf-8
 import json
-
-import urllib3
-import dr_tao_strategy as dt
-import pandas as pd
-import tushare as ts
-import requests
-from datetime import datetime, time
-from datetime import timedelta
-import matplotlib.pyplot as plt
+import operator
 import os.path
+import re
+from datetime import datetime
+from datetime import timedelta
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import requests
+import urllib3
 
 
 def getOnePage(url, d):
@@ -25,7 +24,7 @@ def parseOnePage(html, name):
     return html.loc[(html['name'] == name)]
 
 
-def get_process_data(webHtml, day):
+def get_process_sz_data(pathName, webHtml, day):
     pattern = re.compile(
         r'<div class="mobile-list-heading">股份代号:</div>.*?<div class="mobile-list-body">(.*?)</div>.*?</td>.*?<div class="mobile-list-heading">股份名称:</div>.*?<div class="mobile-list-body">(.*?)</div>.*?</td>.*?<td class="col-shareholding">.*?<div class="mobile-list-heading">于中央结算系统的持股量:</div>.*? <div class="mobile-list-body">(.*?)</div>.*?</td>.*?<td class="col-shareholding-percent">.*?<div class="mobile-list-heading">占于深交所上市及交易的A股总数的百分比:</div>.*?<div class="mobile-list-body">(.*?)</div>'
         , re.S
@@ -37,7 +36,25 @@ def get_process_data(webHtml, day):
         print("日期[%s] 匹配的数据为空!" % day)
         return details
     # 写入文件
-    with open("date/" + day, 'a', encoding='utf-8') as f:
+    with open(pathName + day, 'a', encoding='utf-8') as f:
+        f.write(json.dumps(details, ensure_ascii=False) + '\n')
+
+    return details;
+
+
+def get_process_sh_data(pathName, webHtml, day):
+    pattern = re.compile(
+        r'<div class="mobile-list-heading">股份代号:</div>.*?<div class="mobile-list-body">(.*?)</div>.*?</td>.*?<div class="mobile-list-heading">股份名称:</div>.*?<div class="mobile-list-body">(.*?)</div>.*?</td>.*?<td class="col-shareholding">.*?<div class="mobile-list-heading">于中央结算系统的持股量:</div>.*? <div class="mobile-list-body">(.*?)</div>.*?</td>.*?<td class="col-shareholding-percent">.*?<div class="mobile-list-heading">占于上交所上市及交易的A股总数的百分比:</div>.*?<div class="mobile-list-body">(.*?)</div>'
+        , re.S
+    )
+    details = re.findall(pattern, webHtml)
+
+    # 获取的数据为空
+    if (len(details) == 0):
+        print("日期[%s] 匹配的数据为空!" % day)
+        return details
+    # 写入文件
+    with open(pathName + day, 'a', encoding='utf-8') as f:
         f.write(json.dumps(details, ensure_ascii=False) + '\n')
 
     return details;
@@ -87,10 +104,8 @@ def chart(days, dir, name, today):
     plt.show()
 
 
-def main(days, dir, name, today, all):
+def main(pathName, url, days, dir, name, today, all):
     for day in days:
-        # 抓取数据的url
-        url = 'https://sc.hkexnews.hk/TuniS/www.hkexnews.hk/sdw/search/mutualmarket_c.aspx?t=sz'
         # 抓取数据的post 请求参数
         d = {'today': today, 'sortBy': 'stockcode', 'sortDirection': 'asc',
              'btnSearch': '搜寻',
@@ -100,15 +115,17 @@ def main(days, dir, name, today, all):
              '__EVENTVALIDATION': '/wEdAAdtFULLXu4cXg1Ju23kPkBZVobCVrNyCM2j+bEk3ygqmn1KZjrCXCJtWs9HrcHg6Q64ro36uTSn/Z2SUlkm9HsG7WOv0RDD9teZWjlyl84iRMtpPncyBi1FXkZsaSW6dwqO1N1XNFmfsMXJasjxX85jz8PxJxwgNJLTNVe2Bh/bcg5jDf8='}
 
         # 判断文件是否存在 网站文件
-        if (os.path.isfile("date/" + day)):
-            with open("date/" + day, "r", encoding="utf-8") as dt:
+        if (os.path.isfile(pathName + day)):
+            with open(pathName + day, "r", encoding="utf-8") as dt:
                 html_str = dt.read()
         else:
             webHtml = getOnePage(url, d)
             # 获取到的网页进行数据处理,不然数据太多了
-            with open("date/" + day, "a", encoding="utf-8") as dt:
-                html_str = get_process_data(webHtml, day)
-
+            with open(pathName + day, "a", encoding="utf-8") as dt:
+                if pathName.find("sh") > 0:
+                    html_str = get_process_sh_data(pathName, webHtml, day)
+                else:
+                    html_str = get_process_sz_data(pathName, webHtml, day)
         # 判断获取的数据是否为空
         if (len(html_str) == 0):
             print("获取到的数据为空 当日不再查询[%s]" % day)
@@ -298,7 +315,17 @@ def get_sz_shares_average_incremental(days, day_roll, day_interval, ratio, propo
 
 if __name__ == "__main__":
     days = get_date(30)
-    main(days, "shares/", "沪电股份", datetime.now().strftime("%y%m%d"), True)
+    # 沪股通数据
+    # 抓取数据的url
+    url = 'https://sc.hkexnews.hk/TuniS/www.hkexnews.hk/sdw/search/mutualmarket_c.aspx?t=sh'
+    pathName = "date/sh/"
+    main(pathName, url, days, "shares/", "生益科技", datetime.now().strftime("%y%m%d"), True)
+
+    # 深股通数据
+    # 抓取数据的url
+    url = 'https://sc.hkexnews.hk/TuniS/www.hkexnews.hk/sdw/search/mutualmarket_c.aspx?t=sz'
+    pathName = "date/sz/"
+    main(pathName, url, days, "shares/", "沪电股份", datetime.now().strftime("%y%m%d"), True)
 
     # get_sz_shares_number(days, 4, 0.3)
     # get_sz_shares_number(days, 2, -0.4)
