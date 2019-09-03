@@ -319,13 +319,13 @@ if __name__ == "__main__":
     # 抓取数据的url
     url = 'https://sc.hkexnews.hk/TuniS/www.hkexnews.hk/sdw/search/mutualmarket_c.aspx?t=sh'
     pathName = "date/sh/"
-    main(pathName, url, days, "shares/", "中国巨石", datetime.now().strftime("%y%m%d"), False)
+    main(pathName, url, days, "shares/", "生益科技", datetime.now().strftime("%y%m%d"), True)
 
     # 深股通数据
     # 抓取数据的url
     url = 'https://sc.hkexnews.hk/TuniS/www.hkexnews.hk/sdw/search/mutualmarket_c.aspx?t=sz'
     pathName = "date/sz/"
-    main(pathName, url, days, "shares/", "中国巨石", datetime.now().strftime("%y%m%d"), False)
+    main(pathName, url, days, "shares/", "沪电股份", datetime.now().strftime("%y%m%d"), True)
 
     # get_sz_shares_number(days, 4, 0.3)
     # get_sz_shares_number(days, 2, -0.4)
